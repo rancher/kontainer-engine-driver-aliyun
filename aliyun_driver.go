@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
 	"fmt"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
@@ -24,6 +25,7 @@ import (
 
 const (
 	runningStatus = "running"
+	failedStatus  = "failed"
 	none          = "none"
 	retries       = 5
 	pollInterval  = 30
@@ -167,113 +169,113 @@ func (d *Driver) GetDriverCreateOptions(ctx context.Context) (*types.DriverFlags
 	}
 	driverFlag.Options["disable-rollback"] = &types.Flag{
 		Type:  types.BoolType,
-		Usage: "失败是否回滚",
+		Usage: "Whether or not to roll back if the cluster fails to be created",
 	}
 	driverFlag.Options["cluster-type"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "集群类型,Kubernetes或ManagedKubernetes",
+		Usage: "Cluster type, Kubernetes or ManagedKubernetes",
 		Default: &types.Default{
 			DefaultString: "ManagedKubernetes",
 		},
 	}
 	driverFlag.Options["timeout-mins"] = &types.Flag{
 		Type:  types.IntType,
-		Usage: "集群资源栈创建超时时间，以分钟为单位，默认值 60分钟",
+		Usage: "The timeout (in minutes) for creating the cluster resource stack.",
 	}
 	driverFlag.Options["region-id"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "集群所在地域ID",
+		Usage: "The ID of the region in which the cluster resides",
 	}
 	driverFlag.Options["zone-id"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "所属地域的可用区",
+		Usage: "The zone of the region in which the cluster resides",
 	}
 	driverFlag.Options["vpc-id"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "VPC ID，可空。如果不设置，系统会自动创建VPC，系统创建的VPC网段为192.168.0.0/16。 VpcId 和 vswitchid 只能同时为空或者同时都设置相应的值",
+		Usage: "The VPC ID, which can be empty. If left empty, the system automatically creates a VPC.",
 	}
 	driverFlag.Options["vswitch-id"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "交换机ID，可空。若不设置，系统会自动创建交换机，系统自定创建的交换机网段为 192.168.0.0/16",
+		Usage: "The VSwitch ID, which can be empty. If left empty, the system automatically creates a VSwitch.",
 	}
 	driverFlag.Options["container-cidr"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "容器网段，不能和VPC网段冲突。当选择系统自动创建VPC时，默认使用172.16.0.0/16网段",
+		Usage: "Pod CIDR",
 	}
 	driverFlag.Options["service-cidr"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "服务网段，不能和VPC网段以及容器网段冲突。当选择系统自动创建VPC时，默认使用172.19.0.0/20网段",
+		Usage: "Service CIDR",
 	}
 	driverFlag.Options["worker-instance-charge-type"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "Worker节点付费类型，可选值为：PrePaid: 预付费; PostPaid: 按量付费",
+		Usage: "Worker node payment type PrePaid|PostPaid",
 		Default: &types.Default{
 			DefaultString: "PostPaid",
 		},
 	}
 	driverFlag.Options["worker-period-unit"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "当指定为PrePaid的时候需要指定周期,Week或Month",
+		Usage: "Subscription unit, which includes month and year, and takes effect only for the prepaid type.",
 	}
 	driverFlag.Options["worker-period"] = &types.Flag{
 		Type:  types.IntType,
-		Usage: "包年包月时长",
+		Usage: "Subscription period, which takes effect only for the prepaid type",
 	}
 	driverFlag.Options["worker-auto-renew"] = &types.Flag{
-		Type:  types.BoolPointerType,
-		Usage: "是否开启Worker节点自动续费",
+		Type:  types.BoolType,
+		Usage: "Worker node auto renew",
 	}
 	driverFlag.Options["worker-auto-renew-period"] = &types.Flag{
 		Type:  types.IntType,
-		Usage: "自动续费周期",
+		Usage: "Worker node renew period",
 	}
 	driverFlag.Options["worker-data-disk"] = &types.Flag{
 		Type:  types.BoolType,
-		Usage: "是否挂载数据盘",
+		Usage: "Whether or not to mount data disks",
 	}
 	driverFlag.Options["worker-data-disk-category"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "数据盘类型",
+		Usage: "Data disk category",
 	}
 
 	driverFlag.Options["worker-data-disk-size"] = &types.Flag{
 		Type:  types.IntType,
-		Usage: "数据盘大小",
+		Usage: "Data disk size",
 	}
 	driverFlag.Options["worker-instance-type"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "Worker 节点 ECS 规格类型代码",
+		Usage: "Instance type of worker nodes",
 	}
 	driverFlag.Options["worker-system-disk-category"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "Worker节点系统盘类型",
+		Usage: "System disk type of worker nodes",
 	}
 	driverFlag.Options["worker-system-disk-size"] = &types.Flag{
 		Type:  types.IntType,
-		Usage: "Worker节点系统盘大小",
+		Usage: "System disk size of worker nodes",
 	}
 	driverFlag.Options["login-password"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "SSH登录密码。密码规则为8 - 30 个字符，且同时包含三项（大、小写字母，数字和特殊符号）。和key_pair 二选一",
+		Usage: "Password used to log on to the node by using SSH.",
 	}
 	driverFlag.Options["key-pair"] = &types.Flag{
 		Type:  types.StringType,
-		Usage: "keypair名称。与login_password二选一",
+		Usage: "Key pair name used to log on to the node by using SSH.",
 	}
 	driverFlag.Options["num-of-nodes"] = &types.Flag{
 		Type:  types.IntType,
-		Usage: "Worker节点数。范围是[0,300]",
+		Usage: "number of worker nodes, the range is [0,300]",
 	}
 	driverFlag.Options["snat-entry"] = &types.Flag{
-		Type:  types.StringType,
-		Usage: "是否为网络配置SNAT。如果是自动创建VPC必须设置为true。如果使用已有VPC则根据是否具备出网能力来设置",
+		Type:  types.BoolType,
+		Usage: "whether or not to configure the SNATEntry",
 		Default: &types.Default{
 			DefaultBool: true,
 		},
 	}
 	driverFlag.Options["cloud-monitor-flags"] = &types.Flag{
 		Type:  types.BoolType,
-		Usage: "是否安装云监控插件",
+		Usage: "whether or not to install the cloud monitoring plug-in",
 	}
 	return &driverFlag, nil
 }
@@ -377,23 +379,28 @@ func (d *Driver) waitAliyunCluster(ctx context.Context, svc *cs.Client, state *s
 		if err != nil {
 			return err
 		}
-		if cluster.State == runningStatus {
-			log.Infof(ctx, "Cluster %v is running", state.Name)
-			return nil
-		}
 		status, err := getClusterLastMessage(svc, state)
 		if err != nil {
 			return err
 		}
 		if status != lastMsg {
-			log.Infof(ctx, "provisioning cluster %v:......", state.Name, status)
+			log.Infof(ctx, "provisioning cluster %s:%s", state.Name, status)
 			lastMsg = status
 		}
-		time.Sleep(time.Second * 5)
+
+		if cluster.State == runningStatus {
+			log.Infof(ctx, "Cluster %v is running", state.Name)
+			return nil
+		} else if cluster.State == failedStatus {
+			return fmt.Errorf("aliyun failed to provision cluster: %s", status)
+		}
+		time.Sleep(time.Second * 15)
 	}
 }
 
 func getWrapCreateClusterRequest(state *state) (*cs.CreateClusterRequest, error) {
+	//FIXME
+	logrus.Infof("invoking createCluster")
 	req := cs.CreateCreateClusterRequest()
 	content, err := json.Marshal(state)
 	if err != nil {
@@ -407,6 +414,8 @@ func getWrapCreateClusterRequest(state *state) (*cs.CreateClusterRequest, error)
 }
 
 func getWrapRemoveClusterRequest(state *state) *cs.DeleteClusterRequest {
+	//FIXME
+	logrus.Infof("invoking removeCluster")
 	req := cs.CreateDeleteClusterRequest()
 	req.ClusterId = state.ClusterID
 	req.SetScheme("HTTPS")
@@ -416,6 +425,8 @@ func getWrapRemoveClusterRequest(state *state) *cs.DeleteClusterRequest {
 }
 
 func getCluster(svc *cs.Client, state *state) (*clusterGetResponse, error) {
+	//FIXME
+	logrus.Infof("invoking getCluster")
 	req := cs.CreateDescribeClusterDetailRequest()
 	req.ClusterId = state.ClusterID
 	req.SetScheme("HTTPS")
@@ -425,8 +436,6 @@ func getCluster(svc *cs.Client, state *state) (*clusterGetResponse, error) {
 	if err != nil {
 		return nil, err
 	}
-	logrus.Infof("get cluster:\n")
-	logrus.Infof(resp.GetHttpContentString())
 	cluster := &clusterGetResponse{}
 	if err := json.Unmarshal(resp.GetHttpContentBytes(), cluster); err != nil {
 		return nil, err
@@ -435,6 +444,8 @@ func getCluster(svc *cs.Client, state *state) (*clusterGetResponse, error) {
 }
 
 func putCluster(svc *cs.Client, state *state) error {
+	//FIXME
+	logrus.Infof("invoking putCluster")
 	m := make(map[string]interface{})
 	m["disable_rollback"] = state.DisableRollback
 	m["timeout_mins"] = state.TimeoutMins
@@ -453,6 +464,8 @@ func putCluster(svc *cs.Client, state *state) error {
 }
 
 func getClusterUserConfig(svc *cs.Client, state *state) (*api.Config, error) {
+	//FIXME
+	logrus.Infof("invoking getConfig")
 	request := NewCsAPIRequest("DescribeClusterTokens", requests.GET)
 	request.PathPattern = "/k8s/[ClusterId]/user_config"
 	request.PathParams["ClusterId"] = state.ClusterID
@@ -480,6 +493,8 @@ func validateConfig(config *api.Config) error {
 }
 
 func getClusterCerts(svc *cs.Client, state *state) (*clusterCerts, error) {
+	//FIXME
+	logrus.Infof("invoking getCert")
 	request := NewCsAPIRequest("DescribeClusterCerts", requests.GET)
 	request.PathPattern = "/clusters/[ClusterId]/certs"
 	request.PathParams["ClusterId"] = state.ClusterID
@@ -491,6 +506,8 @@ func getClusterCerts(svc *cs.Client, state *state) (*clusterCerts, error) {
 }
 
 func getClusterLastMessage(svc *cs.Client, state *state) (string, error) {
+	//FIXME
+	logrus.Infof("invoking getLog")
 	request := NewCsAPIRequest("DescribeClusterLogs", requests.GET)
 	request.PathPattern = "/clusters/[ClusterId]/logs"
 	request.PathParams["ClusterId"] = state.ClusterID
@@ -600,9 +617,9 @@ func (d *Driver) PostCheck(ctx context.Context, info *types.ClusterInfo) (*types
 
 	info.Endpoint = userConfig.Clusters[currentContext.Cluster].Server
 	info.Version = cluster.CurrentVersion
-	info.RootCaCertificate = certs.Ca
-	info.ClientCertificate = certs.Cert
-	info.ClientKey = certs.Key
+	info.RootCaCertificate = base64.StdEncoding.EncodeToString([]byte(certs.Ca))
+	info.ClientCertificate = base64.StdEncoding.EncodeToString([]byte(certs.Cert))
+	info.ClientKey = base64.StdEncoding.EncodeToString([]byte(certs.Key))
 	info.NodeCount = cluster.Size
 
 	host := info.Endpoint
