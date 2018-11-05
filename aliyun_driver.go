@@ -73,33 +73,33 @@ type state struct {
 	SnatEntry                bool   `json:"snat_entry,omitempty"`
 	//not managed Kubernetes fields
 	//是否开放公网SSH登录
-	SSHFlags                 bool
-	MasterInstanceChangeType string
-	MasterPeriod             int64
-	MasterPeriodUnit         string
-	MasterAutoRenew          bool
-	MasterAutoRenewPeriod    int64
-	MasterInstanceType       string
-	MasterSystemDiskCategory string
-	MasterSystemDiskSize     int64
-	MasterDataDisk           bool
-	MasterDataDiskCategory   string
-	MasterDataDiskSize       int64
-	PublicSlb                bool
+	SSHFlags                 bool   `json:"ssh_flags,omitempty"`
+	MasterInstanceChargeType string `json:"master_instance_charge_type,omitempty"`
+	MasterPeriod             int64  `json:"master_period,omitempty"`
+	MasterPeriodUnit         string `json:"master_period_unit,omitempty"`
+	MasterAutoRenew          bool   `json:"master_auto_renew,omitempty"`
+	MasterAutoRenewPeriod    int64  `json:"master_auto_renew_period,omitempty"`
+	MasterInstanceType       string `json:"master_instance_type,omitempty"`
+	MasterSystemDiskCategory string `json:"master_system_disk_category,omitempty"`
+	MasterSystemDiskSize     int64  `json:"master_system_disk_size,omitempty"`
+	MasterDataDisk           bool   `json:"master_data_disk,omitempty"`
+	MasterDataDiskCategory   string `json:"master_data_disk_category,omitempty"`
+	MasterDataDiskSize       int64  `json:"master_data_disk_size,omitempty"`
+	PublicSlb                bool   `json:"public_slb,omitempty"`
 	//multi az type options
-	MultiAz             bool
-	VswitchIDA          string
-	VswitchIDB          string
-	VswitchIDC          string
-	MasterInstanceTypeA string
-	MasterInstanceTypeB string
-	MasterInstanceTypeC string
-	WorkerInstanceTypeA string
-	WorkerInstanceTypeB string
-	WorkerInstanceTypeC string
-	NumOfNodesA         int64
-	NumOfNodesB         int64
-	NumOfNodesC         int64
+	MultiAz             bool   `json:"multi_az,omitempty"`
+	VswitchIDA          string `json:"vswitch_id_a,omitempty"`
+	VswitchIDB          string `json:"vswitch_id_b,omitempty"`
+	VswitchIDC          string `json:"vswitch_id_c,omitempty"`
+	MasterInstanceTypeA string `json:"master_instance_type_a,omitempty"`
+	MasterInstanceTypeB string `json:"master_instance_type_b,omitempty"`
+	MasterInstanceTypeC string `json:"master_instance_type_c,omitempty"`
+	WorkerInstanceTypeA string `json:"worker_instance_type_a,omitempty"`
+	WorkerInstanceTypeB string `json:"worker_instance_type_b,omitempty"`
+	WorkerInstanceTypeC string `json:"worker_instance_type_c,omitempty"`
+	NumOfNodesA         int64  `json:"num_of_nodes_a,omitempty"`
+	NumOfNodesB         int64  `json:"num_of_nodes_b,omitempty"`
+	NumOfNodesC         int64  `json:"num_of_nodes_c,omitempty"`
 
 	// cluster info
 	ClusterInfo types.ClusterInfo
@@ -156,6 +156,10 @@ func (d *Driver) GetDriverCreateOptions(ctx context.Context) (*types.DriverFlags
 		Options: make(map[string]*types.Flag),
 	}
 	driverFlag.Options["name"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "the name of the cluster",
+	}
+	driverFlag.Options["display-name"] = &types.Flag{
 		Type:  types.StringType,
 		Usage: "the display name of the cluster",
 	}
@@ -237,7 +241,6 @@ func (d *Driver) GetDriverCreateOptions(ctx context.Context) (*types.DriverFlags
 		Type:  types.StringType,
 		Usage: "Data disk category",
 	}
-
 	driverFlag.Options["worker-data-disk-size"] = &types.Flag{
 		Type:  types.IntType,
 		Usage: "Data disk size",
@@ -268,15 +271,120 @@ func (d *Driver) GetDriverCreateOptions(ctx context.Context) (*types.DriverFlags
 	}
 	driverFlag.Options["snat-entry"] = &types.Flag{
 		Type:  types.BoolType,
-		Usage: "whether or not to configure the SNATEntry",
+		Usage: "Whether or not to configure the SNATEntry",
 		Default: &types.Default{
 			DefaultBool: true,
 		},
 	}
 	driverFlag.Options["cloud-monitor-flags"] = &types.Flag{
 		Type:  types.BoolType,
-		Usage: "whether or not to install the cloud monitoring plug-in",
+		Usage: "Whether or not to install the cloud monitoring plug-in",
 	}
+	driverFlag.Options["ssh-flags"] = &types.Flag{
+		Type:  types.BoolType,
+		Usage: "Whether or not to enable SSH access for Internet",
+	}
+	driverFlag.Options["master-instance-charge-type"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Master node payment type PrePaid|PostPaid",
+	}
+	driverFlag.Options["master-period"] = &types.Flag{
+		Type:  types.IntType,
+		Usage: "Subscription period, which takes effect only for the prepaid type",
+	}
+	driverFlag.Options["master-period-unit"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Subscription unit, which includes month and year, and takes effect only for the prepaid type.",
+	}
+	driverFlag.Options["master-auto-renew"] = &types.Flag{
+		Type:  types.BoolType,
+		Usage: "Master node auto renew",
+	}
+	driverFlag.Options["master-auto-renew-period"] = &types.Flag{
+		Type:  types.IntType,
+		Usage: "Master node renew period",
+	}
+	driverFlag.Options["master-instance-type"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Instance type of master nodes",
+	}
+	driverFlag.Options["master-system-disk-category"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "System disk type of master nodes",
+	}
+	driverFlag.Options["master-system-disk-size"] = &types.Flag{
+		Type:  types.IntType,
+		Usage: "System disk size of master nodes",
+	}
+	driverFlag.Options["master-data-disk"] = &types.Flag{
+		Type:  types.BoolType,
+		Usage: "Whether or not to mount data disks",
+	}
+	driverFlag.Options["master-data-disk-category"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Data disk category",
+	}
+	driverFlag.Options["master-data-disk-size"] = &types.Flag{
+		Type:  types.IntType,
+		Usage: "Data disk size",
+	}
+	driverFlag.Options["public-slb"] = &types.Flag{
+		Type:  types.BoolType,
+		Usage: "Whether or not to create SLB to the API server",
+	}
+	driverFlag.Options["multi-az"] = &types.Flag{
+		Type:  types.BoolType,
+		Usage: "Whether or not to set up master nodes in multiple available zones",
+	}
+	driverFlag.Options["vswitch-id-a"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Vswitch id of zone A",
+	}
+	driverFlag.Options["vswitch-id-b"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Vswitch id of zone B",
+	}
+	driverFlag.Options["vswitch-id-c"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Vswitch id of zone C",
+	}
+	driverFlag.Options["master-instance-type-a"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Instance type of the master node in zone A",
+	}
+	driverFlag.Options["master-instance-type-b"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Instance type of the master node in zone B",
+	}
+	driverFlag.Options["master-instance-type-c"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Instance type of the master node in zone C",
+	}
+	driverFlag.Options["worker-instance-type-a"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Instance type of the worker nodes in zone A",
+	}
+	driverFlag.Options["worker-instance-type-b"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Instance type of the worker nodes in zone B",
+	}
+	driverFlag.Options["worker-instance-type-c"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Instance type of the worker nodes in zone C",
+	}
+	driverFlag.Options["num-of-nodes-a"] = &types.Flag{
+		Type:  types.IntType,
+		Usage: "number of worker nodes in zone A",
+	}
+	driverFlag.Options["num-of-nodes-b"] = &types.Flag{
+		Type:  types.IntType,
+		Usage: "number of worker nodes in zone B",
+	}
+	driverFlag.Options["num-of-nodes-c"] = &types.Flag{
+		Type:  types.IntType,
+		Usage: "number of worker nodes in zone C",
+	}
+
 	return &driverFlag, nil
 }
 
@@ -299,7 +407,7 @@ func getStateFromOpts(driverOptions *types.DriverOptions) (*state, error) {
 			Metadata: map[string]string{},
 		},
 	}
-	d.Name = options.GetValueFromDriverOptions(driverOptions, types.StringType, "name").(string)
+	d.Name = options.GetValueFromDriverOptions(driverOptions, types.StringType, "display-name", "displayName").(string)
 	d.AccessKeyID = options.GetValueFromDriverOptions(driverOptions, types.StringType, "access-key-id", "accessKeyId").(string)
 	d.AccessKeySecret = options.GetValueFromDriverOptions(driverOptions, types.StringType, "access-key-secret", "accessKeySecret").(string)
 	d.DisableRollback = options.GetValueFromDriverOptions(driverOptions, types.BoolType, "disable-rollback", "disableRollback").(bool)
@@ -327,6 +435,34 @@ func getStateFromOpts(driverOptions *types.DriverOptions) (*state, error) {
 	d.WorkerDataDiskSize = options.GetValueFromDriverOptions(driverOptions, types.IntType, "worker-data-disk-size", "workerDataDiskSize").(int64)
 	d.NumOfNodes = options.GetValueFromDriverOptions(driverOptions, types.IntType, "num-of-nodes", "numOfNodes").(int64)
 	d.SnatEntry = options.GetValueFromDriverOptions(driverOptions, types.BoolType, "snat-entry", "snatEntry").(bool)
+
+	d.SSHFlags = options.GetValueFromDriverOptions(driverOptions, types.BoolType, "ssh-flags", "sshFlags").(bool)
+	d.MasterInstanceChargeType = options.GetValueFromDriverOptions(driverOptions, types.StringType, "master-instance-charge-type", "masterInstanceChargeType").(string)
+	d.MasterPeriod = options.GetValueFromDriverOptions(driverOptions, types.IntType, "master-period", "masterPeriod").(int64)
+	d.MasterPeriodUnit = options.GetValueFromDriverOptions(driverOptions, types.StringType, "master-period-unit", "masterPeriodUnit").(string)
+	d.MasterAutoRenew = options.GetValueFromDriverOptions(driverOptions, types.BoolType, "master-auto-renew", "masterAutoRenew").(bool)
+	d.MasterAutoRenewPeriod = options.GetValueFromDriverOptions(driverOptions, types.IntType, "master-auto-renew-period", "masterAutoRenewPeriod").(int64)
+	d.MasterInstanceType = options.GetValueFromDriverOptions(driverOptions, types.StringType, "master-instance-type", "masterInstanceType").(string)
+	d.MasterSystemDiskCategory = options.GetValueFromDriverOptions(driverOptions, types.StringType, "master-system-disk-category", "masterSystemDiskCategory").(string)
+	d.MasterSystemDiskSize = options.GetValueFromDriverOptions(driverOptions, types.IntType, "master-system-disk-size", "masterSystemDiskSize").(int64)
+	d.MasterDataDisk = options.GetValueFromDriverOptions(driverOptions, types.BoolType, "master-data-disk", "masterDataDisk").(bool)
+	d.MasterDataDiskCategory = options.GetValueFromDriverOptions(driverOptions, types.StringType, "master-data-disk-category", "masterDataDiskCategory").(string)
+	d.MasterDataDiskSize = options.GetValueFromDriverOptions(driverOptions, types.IntType, "master-data-disk-size", "masterDataDiskSize").(int64)
+	d.PublicSlb = options.GetValueFromDriverOptions(driverOptions, types.BoolType, "public-slb", "publicSlb").(bool)
+
+	d.MultiAz = options.GetValueFromDriverOptions(driverOptions, types.BoolType, "multi-az", "multiAz").(bool)
+	d.VswitchIDA = options.GetValueFromDriverOptions(driverOptions, types.StringType, "vswitch-id-a", "VswitchIdA").(string)
+	d.VswitchIDB = options.GetValueFromDriverOptions(driverOptions, types.StringType, "vswitch-id-b", "VswitchIdB").(string)
+	d.VswitchIDC = options.GetValueFromDriverOptions(driverOptions, types.StringType, "vswitch-id-c", "VswitchIdC").(string)
+	d.MasterInstanceTypeA = options.GetValueFromDriverOptions(driverOptions, types.StringType, "master-instance-type-a", "masterInstanceTypeA").(string)
+	d.MasterInstanceTypeB = options.GetValueFromDriverOptions(driverOptions, types.StringType, "master-instance-type-b", "masterInstanceTypeB").(string)
+	d.MasterInstanceTypeC = options.GetValueFromDriverOptions(driverOptions, types.StringType, "master-instance-type-c", "masterInstanceTypeC").(string)
+	d.WorkerInstanceTypeA = options.GetValueFromDriverOptions(driverOptions, types.StringType, "worker-instance-type-a", "workerInstanceTypeA").(string)
+	d.WorkerInstanceTypeB = options.GetValueFromDriverOptions(driverOptions, types.StringType, "worker-instance-type-b", "workerInstanceTypeB").(string)
+	d.WorkerInstanceTypeC = options.GetValueFromDriverOptions(driverOptions, types.StringType, "worker-instance-type-c", "workerInstanceTypeC").(string)
+	d.NumOfNodesA = options.GetValueFromDriverOptions(driverOptions, types.IntType, "num-of-nodes-a", "numOfNodesA").(int64)
+	d.NumOfNodesB = options.GetValueFromDriverOptions(driverOptions, types.IntType, "num-of-nodes-b", "numOfNodesB").(int64)
+	d.NumOfNodesC = options.GetValueFromDriverOptions(driverOptions, types.IntType, "num-of-nodes-c", "numOfNodesC").(int64)
 
 	return d, d.validate()
 }
