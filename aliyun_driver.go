@@ -599,6 +599,15 @@ func putCluster(svc *cs.Client, state *state) error {
 	return ProcessRequest(svc, request, nil)
 }
 
+func deleteCluster(svc *cs.Client, state *state) error {
+	//FIXME
+	logrus.Infof("invoking deleteCluster")
+	request := NewCsAPIRequest("DeleteCluster", requests.DELETE)
+	request.PathPattern = "/clusters/[ClusterId]"
+	request.PathParams["ClusterId"] = state.ClusterID
+	return ProcessRequest(svc, request, nil)
+}
+
 func getClusterUserConfig(svc *cs.Client, state *state) (*api.Config, error) {
 	//FIXME
 	logrus.Infof("invoking getConfig")
@@ -809,14 +818,11 @@ func (d *Driver) Remove(ctx context.Context, info *types.ClusterInfo) error {
 	if err != nil {
 		return err
 	}
-
 	logrus.Debugf("Removing cluster %v from region %v, zone %v", state.Name, state.RegionID, state.ZoneID)
-	req := getWrapRemoveClusterRequest(state)
-	resp, err := svc.DeleteCluster(req)
-	if err != nil && !strings.Contains(err.Error(), "NotFound") {
+	if err := deleteCluster(svc, state); err != nil && !strings.Contains(err.Error(), "NotFound") {
 		return err
 	} else if err == nil {
-		logrus.Debugf("Cluster %v delete is called. Status Code %v", state.Name, resp.GetHttpStatus())
+		logrus.Debugf("Cluster %v delete is called.", state.Name)
 	} else {
 		logrus.Debugf("Cluster %s doesn't exist", state.Name)
 	}
