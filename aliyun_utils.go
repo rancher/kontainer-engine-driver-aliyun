@@ -2,9 +2,10 @@ package main
 
 import (
 	"encoding/json"
+	"strings"
+
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/cs"
-	"strings"
 )
 
 func NewCsAPIRequest(apiName, method string) *requests.CommonRequest {

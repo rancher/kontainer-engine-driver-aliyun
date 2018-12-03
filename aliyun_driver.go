@@ -4,9 +4,14 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"sync"
+	"time"
+
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/auth/credentials"
 	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/utils"
 	"github.com/aliyun/alibaba-cloud-sdk-go/services/cs"
 	"github.com/rancher/kontainer-engine/drivers/options"
 	"github.com/rancher/kontainer-engine/drivers/util"
@@ -18,20 +23,22 @@ import (
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
-	"strings"
-	"sync"
-	"time"
 )
 
 const (
 	runningStatus = "running"
 	failedStatus  = "failed"
-	none          = "none"
 	retries       = 5
 	pollInterval  = 30
 )
 
 var EnvMutex sync.Mutex
+
+func init() {
+	gmtTzData := []byte{84, 90, 105, 102, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 71, 77, 84, 0, 0, 0, 10, 71, 77, 84, 48, 10}
+	utils.LoadLocationFromTZData = time.LoadLocationFromTZData
+	utils.TZData = gmtTzData
+}
 
 // Driver defines the struct of aliyun driver
 type Driver struct {
@@ -40,7 +47,7 @@ type Driver struct {
 }
 
 type state struct {
-	// The displayed name of the cluster
+	// The displays name of the cluster
 	Name string `json:"name,omitempty"`
 	//Common fields
 	ClusterID                string `json:"cluster_id,omitempty"`
@@ -71,8 +78,7 @@ type state struct {
 	WorkerDataDiskSize       int64  `json:"worker_data_disk_size,omitempty"`
 	NumOfNodes               int64  `json:"num_of_nodes,omitempty"`
 	SnatEntry                bool   `json:"snat_entry,omitempty"`
-	//not managed Kubernetes fields
-	//是否开放公网SSH登录
+	// non-managed Kubernetes fields
 	SSHFlags                 bool   `json:"ssh_flags,omitempty"`
 	MasterInstanceChargeType string `json:"master_instance_charge_type,omitempty"`
 	MasterPeriod             int64  `json:"master_period,omitempty"`
@@ -86,7 +92,7 @@ type state struct {
 	MasterDataDiskCategory   string `json:"master_data_disk_category,omitempty"`
 	MasterDataDiskSize       int64  `json:"master_data_disk_size,omitempty"`
 	PublicSlb                bool   `json:"public_slb,omitempty"`
-	//multi az type options
+	// multi-az kubernetes options
 	MultiAz             bool   `json:"multi_az,omitempty"`
 	VswitchIDA          string `json:"vswitch_id_a,omitempty"`
 	VswitchIDB          string `json:"vswitch_id_b,omitempty"`
@@ -536,54 +542,60 @@ func (d *Driver) waitAliyunCluster(ctx context.Context, svc *cs.Client, state *s
 	}
 }
 
-func getWrapCreateClusterRequest(state *state) (*cs.CreateClusterRequest, error) {
-	//FIXME
-	logrus.Infof("invoking createCluster")
-	req := cs.CreateCreateClusterRequest()
+//func getWrapCreateClusterRequest(state *state) (*cs.CreateClusterRequest, error) {
+//	req := cs.CreateCreateClusterRequest()
+//	content, err := json.Marshal(state)
+//	if err != nil {
+//		return nil, err
+//	}
+//	req.SetScheme("HTTPS")
+//	req.SetDomain("cs.aliyuncs.com")
+//	req.SetContentType("application/json;charset=utf-8")
+//	req.SetContent(content)
+//	return req, nil
+//}
+
+func createCluster(svc *cs.Client, state *state) (*clusterCreateResponse, error) {
+	request := NewCsAPIRequest("CreateCluster", requests.POST)
+	request.PathPattern = "/clusters"
 	content, err := json.Marshal(state)
 	if err != nil {
 		return nil, err
 	}
-	req.SetScheme("HTTPS")
-	req.SetDomain("cs.aliyuncs.com")
-	req.SetContentType("application/json;charset=utf-8")
-	req.SetContent(content)
-	return req, nil
-}
-
-func getWrapRemoveClusterRequest(state *state) *cs.DeleteClusterRequest {
-	//FIXME
-	logrus.Infof("invoking removeCluster")
-	req := cs.CreateDeleteClusterRequest()
-	req.ClusterId = state.ClusterID
-	req.SetScheme("HTTPS")
-	req.SetDomain("cs.aliyuncs.com")
-	req.SetContentType("application/json;charset=utf-8")
-	return req
+	request.SetContent(content)
+	cluster := &clusterCreateResponse{}
+	if err := ProcessRequest(svc, request, cluster); err != nil {
+		return nil, err
+	}
+	return cluster, nil
 }
 
 func getCluster(svc *cs.Client, state *state) (*clusterGetResponse, error) {
-	//FIXME
-	logrus.Infof("invoking getCluster")
-	req := cs.CreateDescribeClusterDetailRequest()
-	req.ClusterId = state.ClusterID
-	req.SetScheme("HTTPS")
-	req.SetDomain("cs.aliyuncs.com")
-	req.SetContentType("application/json;charset=utf-8")
-	resp, err := svc.DescribeClusterDetail(req)
-	if err != nil {
-		return nil, err
-	}
+	//req := cs.CreateDescribeClusterDetailRequest()
+	//req.ClusterId = state.ClusterID
+	//req.SetScheme("HTTPS")
+	//req.SetDomain("cs.aliyuncs.com")
+	//req.SetContentType("application/json;charset=utf-8")
+	//resp, err := svc.DescribeClusterDetail(req)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//cluster := &clusterGetResponse{}
+	//if err := json.Unmarshal(resp.GetHttpContentBytes(), cluster); err != nil {
+	//	return nil, err
+	//}
+
+	request := NewCsAPIRequest("DescribeClusterDetail", requests.GET)
+	request.PathPattern = "/clusters/[ClusterId]"
+	request.PathParams["ClusterId"] = state.ClusterID
 	cluster := &clusterGetResponse{}
-	if err := json.Unmarshal(resp.GetHttpContentBytes(), cluster); err != nil {
+	if err := ProcessRequest(svc, request, cluster); err != nil {
 		return nil, err
 	}
 	return cluster, nil
 }
 
 func putCluster(svc *cs.Client, state *state) error {
-	//FIXME
-	logrus.Infof("invoking putCluster")
 	m := make(map[string]interface{})
 	m["disable_rollback"] = state.DisableRollback
 	m["timeout_mins"] = state.TimeoutMins
@@ -602,8 +614,6 @@ func putCluster(svc *cs.Client, state *state) error {
 }
 
 func deleteCluster(svc *cs.Client, state *state) error {
-	//FIXME
-	logrus.Infof("invoking deleteCluster")
 	request := NewCsAPIRequest("DeleteCluster", requests.DELETE)
 	request.PathPattern = "/clusters/[ClusterId]"
 	request.PathParams["ClusterId"] = state.ClusterID
@@ -611,8 +621,6 @@ func deleteCluster(svc *cs.Client, state *state) error {
 }
 
 func getClusterUserConfig(svc *cs.Client, state *state) (*api.Config, error) {
-	//FIXME
-	logrus.Infof("invoking getConfig")
 	request := NewCsAPIRequest("DescribeClusterTokens", requests.GET)
 	request.PathPattern = "/k8s/[ClusterId]/user_config"
 	request.PathParams["ClusterId"] = state.ClusterID
@@ -640,8 +648,6 @@ func validateConfig(config *api.Config) error {
 }
 
 func getClusterCerts(svc *cs.Client, state *state) (*clusterCerts, error) {
-	//FIXME
-	logrus.Infof("invoking getCert")
 	request := NewCsAPIRequest("DescribeClusterCerts", requests.GET)
 	request.PathPattern = "/clusters/[ClusterId]/certs"
 	request.PathParams["ClusterId"] = state.ClusterID
@@ -653,8 +659,6 @@ func getClusterCerts(svc *cs.Client, state *state) (*clusterCerts, error) {
 }
 
 func getClusterLastMessage(svc *cs.Client, state *state) (string, error) {
-	//FIXME
-	logrus.Infof("invoking getLog")
 	request := NewCsAPIRequest("DescribeClusterLogs", requests.GET)
 	request.PathPattern = "/clusters/[ClusterId]/logs"
 	request.PathParams["ClusterId"] = state.ClusterID
@@ -684,23 +688,25 @@ func (d *Driver) Create(ctx context.Context, opts *types.DriverOptions, _ *types
 	if err != nil {
 		return nil, err
 	}
-
-	req, err := getWrapCreateClusterRequest(state)
-	if err != nil {
-		return nil, err
-	}
-	resp, err := svc.CreateCluster(req)
+	//
+	//req, err := getWrapCreateClusterRequest(state)
+	//if err != nil {
+	//	return nil, err
+	//}
+	//resp, err := svc.CreateCluster(req)
+	//if err != nil && !strings.Contains(err.Error(), "AlreadyExist") {
+	//	return nil, err
+	//}
+	//cluster := &clusterCreateResponse{}
+	//if err := json.Unmarshal(resp.GetHttpContentBytes(), cluster); err != nil {
+	//	return nil, err
+	//}
+	cluster, err := createCluster(svc, state)
 	if err != nil && !strings.Contains(err.Error(), "AlreadyExist") {
 		return nil, err
 	}
-	cluster := &clusterCreateResponse{}
-	if err := json.Unmarshal(resp.GetHttpContentBytes(), cluster); err != nil {
-		return nil, err
-	}
-
 	if err == nil {
 		state.ClusterID = cluster.ClusterID
-		logrus.Debugf("Cluster %s create is called for region %s and zone %s. Status Code %v", state.ClusterID, state.RegionID, state.ZoneID, resp.GetHttpStatus())
 	}
 
 	if err := d.waitAliyunCluster(ctx, svc, state); err != nil {
@@ -731,7 +737,7 @@ func getState(info *types.ClusterInfo) (*state, error) {
 
 // Update implements driver interface
 func (d *Driver) Update(ctx context.Context, info *types.ClusterInfo, opts *types.DriverOptions) (*types.ClusterInfo, error) {
-	logrus.Info("unimplemented")
+	logrus.Debug("update unimplemented")
 	return info, nil
 }
 

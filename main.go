@@ -26,7 +26,7 @@ func main() {
 	addr := make(chan string)
 	go types.NewServer(&Driver{}, addr).ServeOrDie(fmt.Sprintf("127.0.0.1:%v", port))
 
-	logrus.Infof("aliyun driver up and running on at %v", <-addr)
+	logrus.Debugf("aliyun driver up and running on at %v", <-addr)
 
 	wg.Add(1)
 	wg.Wait() // wait forever, we only exit if killed by parent process
