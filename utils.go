@@ -1,12 +1,14 @@
 package main
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
+	"github.com/aliyun/alibaba-cloud-sdk-go/sdk/requests"
+	"github.com/aliyun/alibaba-cloud-sdk-go/services/cs"
 	errs "github.com/pkg/errors"
-	"github.com/rancher/types/apis/management.cattle.io/v3"
-	"gopkg.in/yaml.v2"
 	"k8s.io/api/core/v1"
 	"k8s.io/api/rbac/v1beta1"
 	"k8s.io/apimachinery/pkg/api/errors"
@@ -102,10 +104,28 @@ func GenerateServiceAccountToken(clientset kubernetes.Interface) (string, error)
 	return "", errs.New("failed to fetch serviceAccountToken")
 }
 
-func ConvertToRkeConfig(config string) (v3.RancherKubernetesEngineConfig, error) {
-	var rkeConfig v3.RancherKubernetesEngineConfig
-	if err := yaml.Unmarshal([]byte(config), &rkeConfig); err != nil {
-		return rkeConfig, err
+// NewCsAPIRequest constructs general aliyun sdk request
+func NewCsAPIRequest(apiName, method string) *requests.CommonRequest {
+	requests.NewCommonRequest()
+	request := requests.NewCommonRequest()
+	request.Version = "2015-12-15"
+	request.ApiName = apiName
+	request.Method = method
+	request.SetDomain("cs.aliyuncs.com")
+	request.SetScheme(requests.HTTPS)
+	request.SetContentType("application/json;charset=utf-8")
+	return request
+}
+
+func ProcessRequest(svc *cs.Client, request *requests.CommonRequest, obj interface{}) error {
+	response, err := svc.ProcessCommonRequest(request)
+	if err != nil && !strings.Contains(err.Error(), "JsonUnmarshalError") {
+		return err
 	}
-	return rkeConfig, nil
+	if obj != nil {
+		if err := json.Unmarshal(response.GetHttpContentBytes(), obj); err != nil {
+			return err
+		}
+	}
+	return nil
 }

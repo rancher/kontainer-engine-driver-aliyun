@@ -35,6 +35,7 @@ const (
 var EnvMutex sync.Mutex
 
 func init() {
+	// GMT IANA timezone data
 	gmtTzData := []byte{84, 90, 105, 102, 50, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 4, 0, 0, 0, 0, 0, 0, 71, 77, 84, 0, 0, 0, 10, 71, 77, 84, 48, 10}
 	utils.LoadLocationFromTZData = time.LoadLocationFromTZData
 	utils.TZData = gmtTzData
@@ -148,8 +149,7 @@ func NewDriver() types.Driver {
 		},
 	}
 
-	//driver.driverCapabilities.AddCapability(types.GetVersionCapability)
-	//driver.driverCapabilities.AddCapability(types.SetVersionCapability)
+	driver.driverCapabilities.AddCapability(types.GetVersionCapability)
 	driver.driverCapabilities.AddCapability(types.GetClusterSizeCapability)
 	driver.driverCapabilities.AddCapability(types.SetClusterSizeCapability)
 
@@ -542,19 +542,6 @@ func (d *Driver) waitAliyunCluster(ctx context.Context, svc *cs.Client, state *s
 	}
 }
 
-//func getWrapCreateClusterRequest(state *state) (*cs.CreateClusterRequest, error) {
-//	req := cs.CreateCreateClusterRequest()
-//	content, err := json.Marshal(state)
-//	if err != nil {
-//		return nil, err
-//	}
-//	req.SetScheme("HTTPS")
-//	req.SetDomain("cs.aliyuncs.com")
-//	req.SetContentType("application/json;charset=utf-8")
-//	req.SetContent(content)
-//	return req, nil
-//}
-
 func createCluster(svc *cs.Client, state *state) (*clusterCreateResponse, error) {
 	request := NewCsAPIRequest("CreateCluster", requests.POST)
 	request.PathPattern = "/clusters"
@@ -571,20 +558,6 @@ func createCluster(svc *cs.Client, state *state) (*clusterCreateResponse, error)
 }
 
 func getCluster(svc *cs.Client, state *state) (*clusterGetResponse, error) {
-	//req := cs.CreateDescribeClusterDetailRequest()
-	//req.ClusterId = state.ClusterID
-	//req.SetScheme("HTTPS")
-	//req.SetDomain("cs.aliyuncs.com")
-	//req.SetContentType("application/json;charset=utf-8")
-	//resp, err := svc.DescribeClusterDetail(req)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//cluster := &clusterGetResponse{}
-	//if err := json.Unmarshal(resp.GetHttpContentBytes(), cluster); err != nil {
-	//	return nil, err
-	//}
-
 	request := NewCsAPIRequest("DescribeClusterDetail", requests.GET)
 	request.PathPattern = "/clusters/[ClusterId]"
 	request.PathParams["ClusterId"] = state.ClusterID
@@ -688,19 +661,7 @@ func (d *Driver) Create(ctx context.Context, opts *types.DriverOptions, _ *types
 	if err != nil {
 		return nil, err
 	}
-	//
-	//req, err := getWrapCreateClusterRequest(state)
-	//if err != nil {
-	//	return nil, err
-	//}
-	//resp, err := svc.CreateCluster(req)
-	//if err != nil && !strings.Contains(err.Error(), "AlreadyExist") {
-	//	return nil, err
-	//}
-	//cluster := &clusterCreateResponse{}
-	//if err := json.Unmarshal(resp.GetHttpContentBytes(), cluster); err != nil {
-	//	return nil, err
-	//}
+
 	cluster, err := createCluster(svc, state)
 	if err != nil && !strings.Contains(err.Error(), "AlreadyExist") {
 		return nil, err
@@ -890,7 +851,7 @@ func (d *Driver) SetClusterSize(ctx context.Context, info *types.ClusterInfo, co
 }
 
 func (d *Driver) SetVersion(ctx context.Context, info *types.ClusterInfo, version *types.KubernetesVersion) error {
-	logrus.Info("unimplemented")
+	logrus.Debug("setversion unimplemented")
 	return nil
 }
 
@@ -900,8 +861,8 @@ func (d *Driver) GetCapabilities(ctx context.Context) (*types.Capabilities, erro
 
 func (d *Driver) GetK8SCapabilities(ctx context.Context, opts *types.DriverOptions) (*types.K8SCapabilities, error) {
 	return &types.K8SCapabilities{
-		L4LoadBalancer: &types.L4LoadBalancer{
-			Enabled:              false,
+		L4LoadBalancer: &types.LoadBalancerCapabilities{
+			Enabled:              true,
 			Provider:             "Aliyun L4 LB",
 			ProtocolsSupported:   []string{"TCP", "UDP"},
 			HealthCheckSupported: false,
