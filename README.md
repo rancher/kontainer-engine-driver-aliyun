@@ -10,7 +10,7 @@ Kontainer Engine Aliyun Driver
 
 ## Running
 
-`./bin/kontainer-engine-aliyun-driver`
+`./bin/kontainer-engine-aliyunkubernetescontainerservice-driver`
 
 ## License
 Copyright (c) 2018 [Rancher Labs, Inc.](http://rancher.com)
