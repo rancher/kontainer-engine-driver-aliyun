@@ -11,7 +11,7 @@ import (
 )
 
 // NewClient creates a grpc client for a driver plugin
-func NewClient(driverName string, addr string) (Driver, error) {
+func NewClient(driverName string, addr string) (CloseableDriver, error) {
 	conn, err := grpc.Dial(addr, grpc.WithInsecure())
 	if err != nil {
 		return nil, err
@@ -20,6 +20,7 @@ func NewClient(driverName string, addr string) (Driver, error) {
 	return &grpcClient{
 		client:     c,
 		driverName: driverName,
+		conn:       conn,
 	}, nil
 }
 
@@ -27,6 +28,7 @@ func NewClient(driverName string, addr string) (Driver, error) {
 type grpcClient struct {
 	client     DriverClient
 	driverName string
+	conn       *grpc.ClientConn
 }
 
 // Create call grpc create
@@ -101,6 +103,10 @@ func (rpc *grpcClient) GetCapabilities(ctx context.Context) (*Capabilities, erro
 func (rpc *grpcClient) GetK8SCapabilities(ctx context.Context, opts *DriverOptions) (*K8SCapabilities, error) {
 	capabilities, err := rpc.client.GetK8SCapabilities(ctx, opts)
 	return capabilities, handlErr(err)
+}
+
+func (rpc *grpcClient) Close() error {
+	return rpc.conn.Close()
 }
 
 func handlErr(err error) error {

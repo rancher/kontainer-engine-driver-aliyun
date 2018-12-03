@@ -17,6 +17,11 @@ const (
 	StringSliceType = "stringSlice"
 )
 
+type CloseableDriver interface {
+	Driver
+	Close() error
+}
+
 // Driver defines the interface that each driver plugin should implement
 type Driver interface {
 	// GetDriverCreateOptions returns cli flags that are used in create

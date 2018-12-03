@@ -120,21 +120,20 @@ message SetNodeCountRequest {
 }
 
 message K8sCapabilities {
-    L4LoadBalancer L4LoadBalancer = 1;
-    repeated IngressController IngressControllers = 2;
+    LoadBalancerCapabilities L4LoadBalancer = 1;
+    repeated IngressCapabilities IngressControllers = 2;
     bool NodePoolScalingSupported = 3;
     string NodePortRange = 4;
 }
 
-message L4LoadBalancer {
+message LoadBalancerCapabilities {
     bool Enabled = 1;
     string Provider = 2;
     repeated string ProtocolsSupported = 3;
     bool HealthCheckSupported = 4;
 }
 
-message IngressController {
-    bool HTTPLoadBalancingEnabled = 1;
-    string IngressProvider = 2;
-    bool CustomDefaultBackend = 3;
+message IngressCapabilities {
+    string IngressProvider = 1;
+    bool CustomDefaultBackend = 2;
 }

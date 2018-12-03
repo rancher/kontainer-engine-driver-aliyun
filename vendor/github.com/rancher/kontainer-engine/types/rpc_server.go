@@ -106,6 +106,7 @@ func (s *GrpcServer) Serve(listenAddr string, errChan chan error) {
 	listen, err := net.Listen("tcp", listenAddr)
 	if err != nil {
 		errChan <- err
+		return
 	}
 	addr := listen.Addr().String()
 	s.address <- addr
@@ -116,7 +117,6 @@ func (s *GrpcServer) Serve(listenAddr string, errChan chan error) {
 	if err := s.grpcServer.Serve(listen); err != nil {
 		errChan <- err
 	}
-	return
 }
 
 // ServeOrDie serves a grpc server or kills the process
