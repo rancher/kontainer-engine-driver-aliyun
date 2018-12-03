@@ -164,12 +164,14 @@ func (d *Driver) GetDriverCreateOptions(ctx context.Context) (*types.DriverFlags
 		Usage: "the display name of the cluster",
 	}
 	driverFlag.Options["access-key-id"] = &types.Flag{
-		Type:  types.StringType,
-		Usage: "AcessKeyId",
+		Type:     types.StringType,
+		Usage:    "AcessKeyId",
+		Password: true,
 	}
 	driverFlag.Options["access-key-secret"] = &types.Flag{
-		Type:  types.StringType,
-		Usage: "AccessKeySecret",
+		Type:     types.StringType,
+		Usage:    "AccessKeySecret",
+		Password: true,
 	}
 	driverFlag.Options["disable-rollback"] = &types.Flag{
 		Type:  types.BoolType,
