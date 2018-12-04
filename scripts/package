@@ -16,9 +16,9 @@ if echo $TAG | grep -q dirty; then
     TAG=dev
 fi
 
-cp ../bin/kontainer-engine-aliyunkubernetescontainerservice-driver .
+cp ../bin/kontainer-engine-driver-aliyun .
 
-IMAGE=${REPO}/kontainer-engine-aliyunkubernetescontainerservice-driver:${TAG}
+IMAGE=${REPO}/kontainer-engine-driver-aliyun:${TAG}
 docker build -t ${IMAGE} .
 echo ${IMAGE} > ../dist/images
 echo Built ${IMAGE}
