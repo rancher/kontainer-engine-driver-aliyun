@@ -266,8 +266,9 @@ func (d *Driver) GetDriverCreateOptions(ctx context.Context) (*types.DriverFlags
 		Usage: "System disk size of worker nodes",
 	}
 	driverFlag.Options["login-password"] = &types.Flag{
-		Type:  types.StringType,
-		Usage: "Password used to log on to the node by using SSH.",
+		Type:     types.StringType,
+		Usage:    "Password used to log on to the node by using SSH.",
+		Password: true,
 	}
 	driverFlag.Options["key-pair"] = &types.Flag{
 		Type:  types.StringType,
