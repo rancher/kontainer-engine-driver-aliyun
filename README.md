@@ -1,7 +1,7 @@
 Kontainer Engine Aliyun Driver
 ===============================
 
-## ***FILL THIS OUT WITH A USEFUL DESCRIPTION OF THIS REPO***
+This repo contains the Alibaba ACK(Alibaba Cloud Container Service for Kubernetes) driver for the rancher server.
 
 ## Building
 
