@@ -587,7 +587,7 @@ func getCluster(svc *cs.Client, state *state) (*clusterGetResponse, error) {
 	return cluster, nil
 }
 
-func putCluster(svc *cs.Client, state *state) error {
+func scaleCluster(svc *cs.Client, state *state) error {
 	m := make(map[string]interface{})
 	m["disable_rollback"] = state.DisableRollback
 	m["timeout_mins"] = state.TimeoutMins
@@ -600,6 +600,20 @@ func putCluster(svc *cs.Client, state *state) error {
 	}
 	request := NewCsAPIRequest("ScaleCluster", requests.PUT)
 	request.PathPattern = "/clusters/[ClusterId]"
+	request.PathParams["ClusterId"] = state.ClusterID
+	request.SetContent(b)
+	return ProcessRequest(svc, request, nil)
+}
+
+func upgradeCluster(svc *cs.Client, state *state) error {
+	m := make(map[string]interface{})
+	m["version"] = state.KubernetesVersion
+	b, err := json.Marshal(m)
+	if err != nil {
+		return err
+	}
+	request := NewCsAPIRequest("UpgradeClusterComponents", requests.POST)
+	request.PathPattern = "/clusters/[ClusterId]/components/Kubernetes/upgrade"
 	request.PathParams["ClusterId"] = state.ClusterID
 	request.SetContent(b)
 	return ProcessRequest(svc, request, nil)
@@ -708,8 +722,43 @@ func getState(info *types.ClusterInfo) (*state, error) {
 
 // Update implements driver interface
 func (d *Driver) Update(ctx context.Context, info *types.ClusterInfo, opts *types.DriverOptions) (*types.ClusterInfo, error) {
-	logrus.Debug("update unimplemented")
-	return info, nil
+	state, err := getState(info)
+	if err != nil {
+		return info, err
+	}
+	newState, err := getStateFromOpts(opts)
+	if err != nil {
+		return info, err
+	}
+	svc, err := getAliyunServiceClient(state)
+	if err != nil {
+		return info, err
+	}
+
+	if state.NumOfNodes != newState.NumOfNodes {
+		logrus.Info("scaling cluster")
+		state.NumOfNodes = newState.NumOfNodes
+		if err := scaleCluster(svc, state); err != nil {
+			return info, err
+		}
+		if err := d.waitAliyunCluster(ctx, svc, state); err != nil {
+			return info, err
+		}
+	}
+
+	if versionGreaterThan(newState.KubernetesVersion, state.KubernetesVersion) {
+		logrus.Infof("updating kubernetes version to %q", newState.KubernetesVersion)
+		state.KubernetesVersion = newState.KubernetesVersion
+		if err := upgradeCluster(svc, state); err != nil {
+			return info, err
+		}
+		if err := d.waitAliyunCluster(ctx, svc, state); err != nil {
+			return info, err
+		}
+	}
+
+	logrus.Info("cluster updated successfully")
+	return info, storeState(info, state)
 }
 
 func (d *Driver) PostCheck(ctx context.Context, info *types.ClusterInfo) (*types.ClusterInfo, error) {
@@ -847,6 +896,7 @@ func (d *Driver) GetVersion(ctx context.Context, info *types.ClusterInfo) (*type
 }
 
 func (d *Driver) SetClusterSize(ctx context.Context, info *types.ClusterInfo, count *types.NodeCount) error {
+	logrus.Info("scaling cluster")
 	state, err := getState(info)
 	if err != nil {
 		return err
@@ -856,18 +906,34 @@ func (d *Driver) SetClusterSize(ctx context.Context, info *types.ClusterInfo, co
 		return err
 	}
 	state.NumOfNodes = count.GetCount()
-	if err := putCluster(svc, state); err != nil {
+	if err := scaleCluster(svc, state); err != nil {
 		return err
 	}
 	if err := d.waitAliyunCluster(ctx, svc, state); err != nil {
 		return err
 	}
-	logrus.Info("cluster size updated successfully")
+	logrus.Infof("cluster size scaled to %d successfully", count.GetCount())
 	return nil
 }
 
 func (d *Driver) SetVersion(ctx context.Context, info *types.ClusterInfo, version *types.KubernetesVersion) error {
-	logrus.Debug("setversion unimplemented")
+	logrus.Infof("updating kubernetes version to %q", version.GetVersion())
+	state, err := getState(info)
+	if err != nil {
+		return err
+	}
+	svc, err := getAliyunServiceClient(state)
+	if err != nil {
+		return err
+	}
+	state.KubernetesVersion = version.GetVersion()
+	if err := upgradeCluster(svc, state); err != nil {
+		return err
+	}
+	if err := d.waitAliyunCluster(ctx, svc, state); err != nil {
+		return err
+	}
+	logrus.Infof("cluster updated to version %q successfully", version.GetVersion())
 	return nil
 }
 
