@@ -56,6 +56,7 @@ type state struct {
 	AccessKeySecret          string `json:"accessKeySecret,omitempty"`
 	DisableRollback          bool   `json:"disable_rollback,omitempty"`
 	ClusterType              string `json:"cluster_type,omitempty"`
+	KubernetesVersion        string `json:"kubernetes_version,omitempty"`
 	TimeoutMins              int64  `json:"timeout_mins,omitempty"`
 	RegionID                 string `json:"region_id,omitempty"`
 	VpcID                    string `json:"vpcid,omitempty"`
@@ -189,6 +190,10 @@ func (d *Driver) GetDriverCreateOptions(ctx context.Context) (*types.DriverFlags
 		Default: &types.Default{
 			DefaultString: "ManagedKubernetes",
 		},
+	}
+	driverFlag.Options["kubernetes-version"] = &types.Flag{
+		Type:  types.StringType,
+		Usage: "Kubernetes version",
 	}
 	driverFlag.Options["timeout-mins"] = &types.Flag{
 		Type:  types.IntType,
@@ -421,6 +426,7 @@ func getStateFromOpts(driverOptions *types.DriverOptions) (*state, error) {
 	d.AccessKeySecret = options.GetValueFromDriverOptions(driverOptions, types.StringType, "access-key-secret", "accessKeySecret").(string)
 	d.DisableRollback = options.GetValueFromDriverOptions(driverOptions, types.BoolType, "disable-rollback", "disableRollback").(bool)
 	d.ClusterType = options.GetValueFromDriverOptions(driverOptions, types.StringType, "cluster-type", "clusterType").(string)
+	d.KubernetesVersion = options.GetValueFromDriverOptions(driverOptions, types.StringType, "kubernetes-version", "kubernetesVersion").(string)
 	d.TimeoutMins = options.GetValueFromDriverOptions(driverOptions, types.IntType, "timeout-mins", "timeoutMins").(int64)
 	d.RegionID = options.GetValueFromDriverOptions(driverOptions, types.StringType, "region-id", "regionId").(string)
 	d.VpcID = options.GetValueFromDriverOptions(driverOptions, types.StringType, "vpc-id", "vpcId").(string)
