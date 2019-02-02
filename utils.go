@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -21,6 +22,15 @@ const (
 	clusterAdmin     = "cluster-admin"
 	netesDefault     = "netes-default"
 )
+
+func TickerContext(ctx context.Context, duration time.Duration) <-chan time.Time {
+	ticker := time.NewTicker(duration)
+	go func() {
+		<-ctx.Done()
+		ticker.Stop()
+	}()
+	return ticker.C
+}
 
 // GenerateServiceAccountToken generate a serviceAccountToken for clusterAdmin given a rest clientset
 func GenerateServiceAccountToken(clientset kubernetes.Interface) (string, error) {

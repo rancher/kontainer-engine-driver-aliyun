@@ -26,10 +26,11 @@ import (
 )
 
 const (
-	runningStatus = "running"
-	failedStatus  = "failed"
-	retries       = 5
-	pollInterval  = 30
+	runningStatus      = "running"
+	failedStatus       = "failed"
+	retries            = 5
+	pollInterval       = 30
+	defaultTimeoutMins = 30
 )
 
 var EnvMutex sync.Mutex
@@ -523,28 +524,40 @@ func getAliyunServiceClient(state *state) (*cs.Client, error) {
 }
 
 func (d *Driver) waitAliyunCluster(ctx context.Context, svc *cs.Client, state *state) error {
+	timeoutMins := int64(defaultTimeoutMins)
+	if state.TimeoutMins != 0 {
+		timeoutMins = state.TimeoutMins + 2
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(timeoutMins)*time.Minute)
+	defer cancel()
+	ticker := TickerContext(ctx, 15*time.Second)
+
 	lastMsg := ""
 	for {
-		cluster, err := getCluster(svc, state)
-		if err != nil {
-			return err
-		}
-		status, err := getClusterLastMessage(svc, state)
-		if err != nil {
-			return err
-		}
-		if status != lastMsg {
-			log.Infof(ctx, "provisioning cluster %s:%s", state.Name, status)
-			lastMsg = status
-		}
+		select {
+		case <-ctx.Done():
+			return fmt.Errorf("timeout provisioning cluster %q", state.Name)
+		case <-ticker:
+			cluster, err := getCluster(svc, state)
+			if err != nil {
+				return err
+			}
+			status, err := getClusterLastMessage(svc, state)
+			if err != nil {
+				return err
+			}
+			if status != lastMsg {
+				log.Infof(ctx, "provisioning cluster %s:%s", state.Name, status)
+				lastMsg = status
+			}
 
-		if cluster.State == runningStatus {
-			log.Infof(ctx, "Cluster %v is running", state.Name)
-			return nil
-		} else if cluster.State == failedStatus {
-			return fmt.Errorf("aliyun failed to provision cluster: %s", status)
+			if cluster.State == runningStatus {
+				log.Infof(ctx, "Cluster %v is running", state.Name)
+				return nil
+			} else if cluster.State == failedStatus {
+				return fmt.Errorf("aliyun failed to provision cluster: %s", status)
+			}
 		}
-		time.Sleep(time.Second * 15)
 	}
 }
 
