@@ -722,53 +722,7 @@ func (d *Driver) Update(ctx context.Context, info *types.ClusterInfo, opts *type
 }
 
 func (d *Driver) PostCheck(ctx context.Context, info *types.ClusterInfo) (*types.ClusterInfo, error) {
-	state, err := getState(info)
-	if err != nil {
-		return nil, err
-	}
-	svc, err := getAliyunServiceClient(state)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := d.waitAliyunCluster(ctx, svc, state); err != nil {
-		return nil, err
-	}
-	cluster, err := getCluster(svc, state)
-	if err != nil {
-		return nil, err
-	}
-	userConfig, err := getClusterUserConfig(svc, state)
-	if err != nil {
-		return nil, err
-	}
-	certs, err := getClusterCerts(svc, state)
-	if err != nil {
-		return nil, err
-	}
-	currentContext := userConfig.Contexts[userConfig.CurrentContext]
-
-	info.Endpoint = userConfig.Clusters[currentContext.Cluster].Server
-	info.Version = cluster.CurrentVersion
-	info.RootCaCertificate = base64.StdEncoding.EncodeToString([]byte(certs.Ca))
-	info.ClientCertificate = base64.StdEncoding.EncodeToString([]byte(certs.Cert))
-	info.ClientKey = base64.StdEncoding.EncodeToString([]byte(certs.Key))
-	info.NodeCount = cluster.Size
-
-	host := info.Endpoint
-	if !strings.HasPrefix(host, "https://") {
-		host = fmt.Sprintf("https://%s", host)
-	}
-
-	config := &rest.Config{
-		Host: host,
-		TLSClientConfig: rest.TLSClientConfig{
-			CAData:   []byte(certs.Ca),
-			KeyData:  []byte(certs.Key),
-			CertData: []byte(certs.Cert),
-		},
-	}
-	clientset, err := kubernetes.NewForConfig(config)
+	clientset, err := getClientset(info)
 	if err != nil {
 		return nil, fmt.Errorf("error creating clientset: %v", err)
 	}
@@ -806,6 +760,11 @@ func getClientset(info *types.ClusterInfo) (*kubernetes.Clientset, error) {
 		return nil, err
 	}
 
+	cluster, err := getCluster(svc, state)
+	if err != nil {
+		return nil, err
+	}
+
 	userConfig, err := getClusterUserConfig(svc, state)
 	if err != nil {
 		return nil, err
@@ -817,6 +776,13 @@ func getClientset(info *types.ClusterInfo) (*kubernetes.Clientset, error) {
 	}
 
 	currentContext := userConfig.Contexts[userConfig.CurrentContext]
+	info.Endpoint = userConfig.Clusters[currentContext.Cluster].Server
+	info.Version = cluster.CurrentVersion
+	info.RootCaCertificate = base64.StdEncoding.EncodeToString([]byte(certs.Ca))
+	info.ClientCertificate = base64.StdEncoding.EncodeToString([]byte(certs.Cert))
+	info.ClientKey = base64.StdEncoding.EncodeToString([]byte(certs.Key))
+	info.NodeCount = cluster.Size
+
 	host := userConfig.Clusters[currentContext.Cluster].Server
 	if !strings.HasPrefix(host, "https://") {
 		host = fmt.Sprintf("https://%s", host)
