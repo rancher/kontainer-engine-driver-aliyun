@@ -676,25 +676,27 @@ func (d *Driver) Create(ctx context.Context, opts *types.DriverOptions, _ *types
 		return nil, err
 	}
 
+	info := &types.ClusterInfo{}
+	defer storeState(info, state)
+
 	svc, err := getAliyunServiceClient(state)
 	if err != nil {
-		return nil, err
+		return info, err
 	}
 
 	cluster, err := createCluster(svc, state)
 	if err != nil && !strings.Contains(err.Error(), "AlreadyExist") {
-		return nil, err
+		return info, err
 	}
 	if err == nil {
 		state.ClusterID = cluster.ClusterID
 	}
 
 	if err := d.waitAliyunCluster(ctx, svc, state); err != nil {
-		return nil, err
+		return info, err
 	}
 
-	info := &types.ClusterInfo{}
-	return info, storeState(info, state)
+	return info, nil
 }
 
 func storeState(info *types.ClusterInfo, state *state) error {
@@ -805,10 +807,18 @@ func (d *Driver) Remove(ctx context.Context, info *types.ClusterInfo) error {
 	if err != nil {
 		return err
 	}
+
+	// Validate if the cluster info has clusterID
+	if state == nil || state.ClusterID == "" {
+		logrus.Debugf("Cluster %s clusterId doesn't exist", state.Name)
+		return nil
+	}
+
 	svc, err := getAliyunServiceClient(state)
 	if err != nil {
 		return err
 	}
+
 	logrus.Debugf("Removing cluster %v from region %v, zone %v", state.Name, state.RegionID, state.ZoneID)
 	if err := deleteCluster(svc, state); err != nil && !strings.Contains(err.Error(), "NotFound") {
 		return err
