@@ -639,17 +639,6 @@ func validateConfig(config *api.Config) error {
 	return nil
 }
 
-func getClusterCerts(svc *cs.Client, state *state) (*clusterCerts, error) {
-	request := NewCsAPIRequest("DescribeClusterCerts", requests.GET)
-	request.PathPattern = "/clusters/[ClusterId]/certs"
-	request.PathParams["ClusterId"] = state.ClusterID
-	certs := &clusterCerts{}
-	if err := ProcessRequest(svc, request, certs); err != nil {
-		return nil, err
-	}
-	return certs, nil
-}
-
 func getClusterLastMessage(svc *cs.Client, state *state) (string, error) {
 	request := NewCsAPIRequest("DescribeClusterLogs", requests.GET)
 	request.PathPattern = "/clusters/[ClusterId]/logs"
@@ -772,17 +761,12 @@ func getClientset(info *types.ClusterInfo) (*kubernetes.Clientset, error) {
 		return nil, err
 	}
 
-	certs, err := getClusterCerts(svc, state)
-	if err != nil {
-		return nil, err
-	}
-
 	currentContext := userConfig.Contexts[userConfig.CurrentContext]
 	info.Endpoint = userConfig.Clusters[currentContext.Cluster].Server
 	info.Version = cluster.CurrentVersion
-	info.RootCaCertificate = base64.StdEncoding.EncodeToString([]byte(certs.Ca))
-	info.ClientCertificate = base64.StdEncoding.EncodeToString([]byte(certs.Cert))
-	info.ClientKey = base64.StdEncoding.EncodeToString([]byte(certs.Key))
+	info.RootCaCertificate = base64.StdEncoding.EncodeToString(userConfig.Clusters[currentContext.Cluster].CertificateAuthorityData)
+	info.ClientCertificate = base64.StdEncoding.EncodeToString(userConfig.AuthInfos[currentContext.AuthInfo].ClientCertificateData)
+	info.ClientKey = base64.StdEncoding.EncodeToString(userConfig.AuthInfos[currentContext.AuthInfo].ClientKeyData)
 	info.NodeCount = cluster.Size
 
 	host := userConfig.Clusters[currentContext.Cluster].Server
@@ -793,9 +777,9 @@ func getClientset(info *types.ClusterInfo) (*kubernetes.Clientset, error) {
 	config := &rest.Config{
 		Host: host,
 		TLSClientConfig: rest.TLSClientConfig{
-			CAData:   []byte(certs.Ca),
-			KeyData:  []byte(certs.Key),
-			CertData: []byte(certs.Cert),
+			CAData:   userConfig.Clusters[currentContext.Cluster].CertificateAuthorityData,
+			KeyData:  userConfig.AuthInfos[currentContext.AuthInfo].ClientKeyData,
+			CertData: userConfig.AuthInfos[currentContext.AuthInfo].ClientCertificateData,
 		},
 	}
 	return kubernetes.NewForConfig(config)
